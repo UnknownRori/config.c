@@ -1,6 +1,6 @@
 # implement save buffer
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 100
 - TAGS: feature
 

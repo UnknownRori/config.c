@@ -40,7 +40,7 @@ See LICENSE file in repository root for full terms.
  */
 
 
-#include "config.h"
+#include "rconfig.h"
 
 #include <ctype.h>
 #include <rstb_common.h>
@@ -49,7 +49,7 @@ See LICENSE file in repository root for full terms.
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef RORI_SV
+#ifndef RORI_SV_H
 rori_sv rori_sv_from_cstr(const char* str)
 {
     return (rori_sv) {
@@ -80,8 +80,7 @@ char* rori_sv_to_cstr(rori_sv sv)
     buffer[sv.len + 1] = '\0';
     return buffer;
 }
-
-#endif
+#endif // RORI_SV_H
 
 #define DEFAULT_ALLOC_PROPERTIES_ITEM 16
 
@@ -94,26 +93,26 @@ static bool parse(rori_config_t* config);
 static bool parse_section(rori_config_t* config, rori_sv* buffer);
 static bool parse_section_properties(rori_config_t* config, rori_sv* buffer);
 
-usize config_default_size()
+usize rconfig_default_size()
 {
     return sizeof(rori_config_t);
 }
 
-void config_init_default(rori_config_t* self)
+void rconfig_init_default(rori_config_t* self)
 {
     memset(self, 0, sizeof(*self));
     rstb_da_reserve(self, 10);
 }
 
-bool config_parse_buffer(rori_config_t* self, const char* buffer)
+bool rconfig_parse_buffer(rori_config_t* self, const char* buffer)
 {
     RORI_ASSERT(self != NULL && "skill issue");
-    config_init_default(self);
+    rconfig_init_default(self);
     self->buffer = buffer;
     return parse(self);
 }
 
-bool config_save_buffer(rori_config_t* self, char* buffer, size_t buffer_size, size_t* written_bytes)
+bool rconfig_save_buffer(rori_config_t* self, char* buffer, size_t buffer_size, size_t* written_bytes)
 {
     RORI_ASSERT(self != NULL && "skill issue");
     RORI_ASSERT(buffer != NULL && "skill issue");
@@ -138,7 +137,7 @@ bool config_save_buffer(rori_config_t* self, char* buffer, size_t buffer_size, s
     size_t pos = 0;
 
     for (usize i = 0; i < self->count; i++) {
-        section_t* section = &self->items[i];
+        rconfig_section_t* section = &self->items[i];
 
         SAFE_WRITE_CHAR('[');
         SAFE_WRITE_STR(section->name);
@@ -146,7 +145,7 @@ bool config_save_buffer(rori_config_t* self, char* buffer, size_t buffer_size, s
         SAFE_WRITE_CHAR('\n');
 
         for (usize j = 0; j < section->count; j++) {
-            section_property_t* prop = &section->items[j];
+            rconfig_section_property_t* prop = &section->items[j];
 
             SAFE_WRITE_STR(prop->name);
             SAFE_WRITE_CHAR('=');
@@ -168,18 +167,18 @@ bool config_save_buffer(rori_config_t* self, char* buffer, size_t buffer_size, s
     return true;
 }
 
-void config_unload(rori_config_t* self)
+void rconfig_unload(rori_config_t* self)
 {
     RORI_ASSERT(self != NULL && "skill issue");
-    rstb_da_foreach(section_t, section, self) {
+    rstb_da_foreach(rconfig_section_t, section, self) {
         rstb_da_free(section);
     }
     rstb_da_free(self);
 }
 
-static section_t* find_section(rori_config_t* self, const char* name)
+static rconfig_section_t* find_section(rori_config_t* self, const char* name)
 {
-    rstb_da_foreach(section_t, section, self) {
+    rstb_da_foreach(rconfig_section_t, section, self) {
         if (rori_sv_cmp_cstr(section->name, name) == 0) {
             return section;
         }
@@ -187,19 +186,19 @@ static section_t* find_section(rori_config_t* self, const char* name)
     return NULL;
 }
 
-bool config_get_properties(rori_config_t* self, const char* section_name, const char* name, rori_config_properties* value)
+bool rconfig_get_properties(rori_config_t* self, const char* section_name, const char* name, rconfig_properties* value)
 {
     RORI_ASSERT(self != NULL && "skill issue");
     RORI_ASSERT(section_name != NULL && "skill issue");
     RORI_ASSERT(name != NULL && "skill issue");
     
-    section_t* sect = find_section(self, section_name);
+    rconfig_section_t* sect = find_section(self, section_name);
     if (sect == NULL) return false;
 
-    rstb_da_foreach(section_property_t, property, sect) {
+    rstb_da_foreach(rconfig_section_property_t, property, sect) {
         if (rori_sv_cmp_cstr(property->name, name) == 0) {
             if (value != NULL) {
-                *value = (rori_config_properties) {
+                *value = (rconfig_properties) {
                     .section = sect->name,
                     .name = property->name,
                     .value = property->value,
@@ -211,14 +210,14 @@ bool config_get_properties(rori_config_t* self, const char* section_name, const 
     return false;
 }
 
-bool config_get_properties_bool(rori_config_t* self, const char* section, const char* name, bool* value)
+bool rconfig_get_properties_bool(rori_config_t* self, const char* section, const char* name, bool* value)
 {
     RORI_ASSERT(self != NULL && "skill issue");
     RORI_ASSERT(section != NULL && "skill issue");
     RORI_ASSERT(name != NULL && "skill issue");
     
-    rori_config_properties property;
-    if (!config_get_properties(self, section, name, &property)) return false;
+    rconfig_properties property;
+    if (!rconfig_get_properties(self, section, name, &property)) return false;
     
     if (property.value.len == 0) return false;
 
@@ -241,11 +240,11 @@ bool config_get_properties_bool(rori_config_t* self, const char* section, const 
     return false;
 }
 
-bool config_get_properties_i32(rori_config_t* self, const char* section, const char* name, i32* value)
+bool rconfig_get_properties_i32(rori_config_t* self, const char* section, const char* name, i32* value)
 {
     RORI_ASSERT(self != NULL && "skill issue");
-    rori_config_properties property;
-    if (!config_get_properties(self, section, name, &property)) return false;
+    rconfig_properties property;
+    if (!rconfig_get_properties(self, section, name, &property)) return false;
     
     if (property.value.len == 0) return false;
 
@@ -262,13 +261,13 @@ bool config_get_properties_i32(rori_config_t* self, const char* section, const c
     return true;
 }
 
-bool config_get_properties_cstr(rori_config_t* self, const char* section, const char* name, char* value, usize max_len)
+bool rconfig_get_properties_cstr(rori_config_t* self, const char* section, const char* name, char* value, usize max_len)
 {
     RORI_ASSERT(self != NULL && "skill issue");
     if (value == NULL || max_len == 0) return false;
 
-    rori_config_properties property;
-    if (!config_get_properties(self, section, name, &property)) return false;
+    rconfig_properties property;
+    if (!rconfig_get_properties(self, section, name, &property)) return false;
 
     rori_sv sv = property.value;
     if (sv.len >= 2 && sv.ptr[0] == '"' && sv.ptr[sv.len - 1] == '"') {
@@ -283,21 +282,21 @@ bool config_get_properties_cstr(rori_config_t* self, const char* section, const 
     return true;
 }
 
-bool config_get_properties_sv(rori_config_t* self, const char* section, const char* name, rori_sv* value)
+bool rconfig_get_properties_sv(rori_config_t* self, const char* section, const char* name, rori_sv* value)
 {
     RORI_ASSERT(self != NULL && "skill issue");
-    rori_config_properties property;
-    if (!config_get_properties(self, section, name, &property)) return false;
+    rconfig_properties property;
+    if (!rconfig_get_properties(self, section, name, &property)) return false;
     if (value) *value = property.value;
     return true;
 }
 
-section_t* config_get_or_create_section(rori_config_t* self, const char* section_name)
+rconfig_section_t* rconfig_get_or_create_section(rori_config_t* self, const char* section_name)
 {
-    section_t* sect = find_section(self, section_name);
+    rconfig_section_t* sect = find_section(self, section_name);
     if (sect != NULL) return sect;
 
-    section_t new_section = (section_t) {
+    rconfig_section_t new_section = (rconfig_section_t) {
         .name = rori_sv_from_cstr(section_name),
         .count = 0,
         .items = NULL,
@@ -308,22 +307,22 @@ section_t* config_get_or_create_section(rori_config_t* self, const char* section
     return &rstb_da_last(self);
 }
 
-bool config_set_properties(rori_config_t* self, const char* section_name, const char* name, const char* value)
+bool rconfig_set_properties(rori_config_t* self, const char* section_name, const char* name, const char* value)
 {
     RORI_ASSERT(self != NULL && "skill issue");
     RORI_ASSERT(section_name != NULL && "skill issue");
     RORI_ASSERT(name != NULL && "skill issue");
 
-    section_t* sect = config_get_or_create_section(self, section_name);
+    rconfig_section_t* sect = rconfig_get_or_create_section(self, section_name);
 
-    rstb_da_foreach(section_property_t, prop, sect) {
+    rstb_da_foreach(rconfig_section_property_t, prop, sect) {
         if (rori_sv_cmp_cstr(prop->name, name) == 0) {
             prop->value = rori_sv_from_cstr(value ? value : "");
             return true;
         }
     }
 
-    section_property_t new_prop = (section_property_t) {
+    rconfig_section_property_t new_prop = (rconfig_section_property_t) {
         .name = rori_sv_from_cstr(name),
         .value = rori_sv_from_cstr(value ? value : ""),
     };
@@ -331,41 +330,41 @@ bool config_set_properties(rori_config_t* self, const char* section_name, const 
     return true;
 }
 
-bool config_set_properties_i32(rori_config_t* self, const char* section, const char* name, i32 value)
+bool rconfig_set_properties_i32(rori_config_t* self, const char* section, const char* name, i32 value)
 {
     char* buf = malloc(32); // TODO  Fix this memleak later
     if (buf == NULL) return false;
     snprintf(buf, 32, "%d", value);
-    return config_set_properties(self, section, name, buf);
+    return rconfig_set_properties(self, section, name, buf);
 }
 
-bool config_set_properties_bool(rori_config_t* self, const char* section, const char* name, bool value)
+bool rconfig_set_properties_bool(rori_config_t* self, const char* section, const char* name, bool value)
 {
-    return config_set_properties(self, section, name, value ? true_str : false_str);
+    return rconfig_set_properties(self, section, name, value ? true_str : false_str);
 }
 
-bool config_set_properties_cstr(rori_config_t* self, const char* section, const char* name, const char* value)
+bool rconfig_set_properties_cstr(rori_config_t* self, const char* section, const char* name, const char* value)
 {
-    return config_set_properties(self, section, name, strdup(value));
+    return rconfig_set_properties(self, section, name, strdup(value));
 }
 
-bool config_set_properties_sv(rori_config_t* self, const char* section, const char* name, rori_sv* value)
+bool rconfig_set_properties_sv(rori_config_t* self, const char* section, const char* name, rori_sv* value)
 {
     RORI_ASSERT(self != NULL && "skill issue");
     RORI_ASSERT(section != NULL && "skill issue");
     RORI_ASSERT(name != NULL && "skill issue");
 
-    section_t* sect = config_get_or_create_section(self, section);
+    rconfig_section_t* sect = rconfig_get_or_create_section(self, section);
     rori_sv val_sv = value ? *value : (rori_sv){0};
 
-    rstb_da_foreach(section_property_t, prop, sect) {
+    rstb_da_foreach(rconfig_section_property_t, prop, sect) {
         if (rori_sv_cmp_cstr(prop->name, name) == 0) {
             prop->value = val_sv;
             return true;
         }
     }
 
-    section_property_t new_prop = (section_property_t) {
+    rconfig_section_property_t new_prop = (rconfig_section_property_t) {
         .name = rori_sv_from_cstr(name),
         .value = val_sv,
     };
@@ -436,7 +435,7 @@ static bool parse_section(rori_config_t* config, rori_sv* buffer)
     rori_sv name = skip_until(buffer, ']');
     if (name.ptr == buffer->ptr) return false;
     skip(buffer, 1);
-    section_t section = (section_t) {
+    rconfig_section_t section = (rconfig_section_t) {
         .name = name,
         .count = 0,
         .items = NULL,
@@ -454,7 +453,7 @@ static bool parse_section_properties(rori_config_t* config, rori_sv* buffer)
     if (buffer->len == 0 || buffer->ptr[0] == '[') return false;
     if (config->count == 0) return false;
 
-    section_t* section = &rstb_da_last(config);
+    rconfig_section_t* section = &rstb_da_last(config);
     rori_sv name = skip_until(buffer, '=');
     if (buffer->len == 0 || buffer->ptr[0] != '=') return false;
     skip(buffer, 1);
@@ -464,7 +463,7 @@ static bool parse_section_properties(rori_config_t* config, rori_sv* buffer)
         skip(buffer, 1);
     }
 
-    section_property_t property = (section_property_t) {
+    rconfig_section_property_t property = (rconfig_section_property_t) {
         .name = name,
         .value = value,
     };

@@ -14,6 +14,11 @@ vsync=true
 filter="nearest"
 ```
 
+## Usage
+
+I'm sure you can read the `config.h` the most self-explanatory code, if you can't and need AI for that,
+guys stop it, get some help.
+
 ## Dependency
 
 - malloc, memcpy, assert

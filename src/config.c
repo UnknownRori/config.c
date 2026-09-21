@@ -1,8 +1,44 @@
 /*
- * Copyright (c) 2026 UnknownRori
- * Licensed under the PolyForm Noncommercial License 1.0.0
- * See LICENSE file in repository root for full terms.
+                             @@....--.......@@@                      
+                          @@@.....-............@@                    
+                       @...---.....................@                 
+                    @........-##..-...............   @@              
+                  @........++#++....--.......    ........@           
+               @@.........++++++.........     ...........--@         
+               @@.    ...++===++..   ..............--.------@        
+                @.......+++==++..  ....--..........----------@       
+                @--..---#++++++......--------------------+---  @  @  
+               @--------##+++##---..-------##---##--+----++- ** ** @ 
+             @@---------#######--------+-----###-----+----- ******* @
+           @@%%---------#######------------++++-------+-----+ *** @  
+         @##%-----------########+---------------+-----+...---+- @    
+        @##%%------+----+########+----------....-+-----..----+---@   
+      @#-##%#-----+----++--#######-+----....%%%.-+-----+++-------@   
+      @##-###-----+----++-----####---+--%%%%....-+-----++++---+--@   
+         @###@@--+++----%%%%%%%%%%...-...........-----+++++---+--@   
+             @@+@@-+----++-   ++++..............-----++++++--+++--@  
+               @+@+------++..  ===.............-----++++++---+++--@  
+                @+++---------.................----+++++--+---++++-@  
+                @++++-----------............---##+++++---+----++++-@ 
+                @++++--+--+++++++.......---####--++@@--+++----@   @  
+                 @++++----+++++++++++++####--..........@@@@+---@     
+                   @++++--+@@  @@@......###.................@--@     
+                      @++@@@@.........######............. ...@-@     
+                       @@@..........#########.................@      
+                        @..........###########................@      
+                       @...........--.########.....-...........@     
+                      @...........-..##########....-@-..........@    
+                    @....--....--..-###########...--@ @..........@   
+                   @......-==######%%############.-@   @@.........@  
+                 @.......-=#######%%%#############-@  @..........@   
+                @......--#########%%#############%-@ @.........-@    
+               @......--.#%%%#####%%%###########%%@@..........-@     
+
+Copyright (c) 2026 UnknownRori
+Licensed under the PolyForm Noncommercial License 1.0.0
+See LICENSE file in repository root for full terms.
  */
+
 
 #include "config.h"
 
@@ -80,8 +116,56 @@ bool config_parse_buffer(rori_config_t* self, const char* buffer)
 bool config_save_buffer(rori_config_t* self, char* buffer, size_t buffer_size, size_t* written_bytes)
 {
     RORI_ASSERT(self != NULL && "skill issue");
-    UNIMPLEMENTED;
-    return false;
+    RORI_ASSERT(buffer != NULL && "skill issue");
+    RORI_ASSERT(written_bytes != NULL && "skill issue");
+
+#define SAFE_WRITE(data, len) \
+    do { \
+        if (pos + (len) > buffer_size) return false; \
+        memcpy(buffer + pos, (data), (len)); \
+        pos += (len); \
+    } while (0)
+
+#define SAFE_WRITE_CHAR(c) \
+    do { \
+        if (pos + 1 > buffer_size) return false; \
+        buffer[pos++] = (c); \
+    } while (0)
+
+#define SAFE_WRITE_STR(sv) \
+    SAFE_WRITE((sv).ptr, (sv).len)
+
+    size_t pos = 0;
+
+    for (usize i = 0; i < self->count; i++) {
+        section_t* section = &self->items[i];
+
+        SAFE_WRITE_CHAR('[');
+        SAFE_WRITE_STR(section->name);
+        SAFE_WRITE_CHAR(']');
+        SAFE_WRITE_CHAR('\n');
+
+        for (usize j = 0; j < section->count; j++) {
+            section_property_t* prop = &section->items[j];
+
+            SAFE_WRITE_STR(prop->name);
+            SAFE_WRITE_CHAR('=');
+            SAFE_WRITE_STR(prop->value);
+            SAFE_WRITE_CHAR('\n');
+        }
+
+        if (i < self->count - 1) {
+            SAFE_WRITE_CHAR('\n');
+        }
+    }
+
+    *written_bytes = pos;
+
+#undef SAFE_WRITE
+#undef SAFE_WRITE_CHAR
+#undef SAFE_WRITE_STR
+
+    return true;
 }
 
 void config_unload(rori_config_t* self)

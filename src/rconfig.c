@@ -58,6 +58,22 @@ rori_sv rori_sv_from_cstr(const char* str)
     };
 }
 
+rori_sv rori_sv_chop_by_delim  (rori_sv* sv, char delim)
+{
+    for (size_t i = 0; i < sv->len; i++) {
+        if (sv->ptr[i] == delim) {
+            rori_sv temp = (rori_sv) {
+                .ptr = sv->ptr,
+                .len = i,
+            };
+            sv->ptr  += i + 1;
+            sv->len -= i + 1;
+            return temp;
+        }
+    }
+    return *sv;
+}
+
 int rori_sv_cmp_cstr(rori_sv sv, const char* str)
 {
     if (str == NULL) return 1;
@@ -87,9 +103,11 @@ char* rori_sv_to_cstr(rori_sv sv)
 const static char* true_str = "true";
 const static char* false_str = "false";
 
+static bool expect(rori_sv* sv, char c);
 static rori_sv skip(rori_sv* sv, size_t count);
 static rori_sv skip_until(rori_sv* right, char ch);
 static bool parse(rori_config_t* config);
+static void parse_skip_comment(rori_sv* buffer);
 static bool parse_section(rori_config_t* config, rori_sv* buffer);
 static bool parse_section_properties(rori_config_t* config, rori_sv* buffer);
 
@@ -372,6 +390,16 @@ bool rconfig_set_properties_sv(rori_config_t* self, const char* section, const c
     return true;
 }
 
+static bool expect(rori_sv* sv, char c)
+{
+    if (sv->len <= 0) return false;
+    if (sv->ptr[0] == c) {
+        skip(sv, 1);
+        return true;
+    }
+    return false;
+}
+
 static void skip_whitespace(rori_sv* sv)
 {
     RORI_ASSERT(sv != NULL && "are you being silly or dummy dumb dumb?");
@@ -381,21 +409,12 @@ static void skip_whitespace(rori_sv* sv)
     }
 }
 
-static bool parse(rori_config_t* config)
+static void parse_skip_comment(rori_sv* buffer)
 {
-    rori_sv view = rori_sv_from_cstr(config->buffer);
-    while (view.len > 0) {
-        skip_whitespace(&view);
-        if (view.len == 0) break;
-
-        if (parse_section(config, &view)) {
-            while (parse_section_properties(config, &view)) {}
-        } else {
-            view.ptr++;
-            view.len--;
-        }
+    if (expect(buffer, ';')||expect(buffer, '#')) {
+        skip_until(buffer, '\n');
     }
-    return true;
+    skip(buffer, 1);
 }
 
 static rori_sv skip(rori_sv* sv, size_t count)
@@ -427,11 +446,30 @@ static rori_sv skip_until(rori_sv* right, char ch)
     return left;
 }
 
+static bool parse(rori_config_t* config)
+{
+    rori_sv view = rori_sv_from_cstr(config->buffer);
+    while (view.len > 0) {
+        skip_whitespace(&view);
+        if (view.len == 0) break;
+
+        parse_skip_comment(&view);
+
+        if (parse_section(config, &view)) {
+            while (parse_section_properties(config, &view)) {}
+        } else {
+            view.ptr++;
+            view.len--;
+        }
+    }
+    return true;
+}
+
+
 static bool parse_section(rori_config_t* config, rori_sv* buffer)
 {
     RORI_ASSERT(config != NULL && "are you being silly or dummy dumb dumb?");
-    if (buffer->len == 0 || buffer->ptr[0] != '[') return false;
-    skip(buffer, 1);
+    if (!expect(buffer, '[')) return false;
     rori_sv name = skip_until(buffer, ']');
     if (name.ptr == buffer->ptr) return false;
     skip(buffer, 1);
@@ -450,6 +488,7 @@ static bool parse_section_properties(rori_config_t* config, rori_sv* buffer)
     RORI_ASSERT(config != NULL && "are you being silly or dummy dumb dumb?");
     
     skip_whitespace(buffer);
+    parse_skip_comment(buffer);
     if (buffer->len == 0 || buffer->ptr[0] == '[') return false;
     if (config->count == 0) return false;
 
@@ -459,6 +498,8 @@ static bool parse_section_properties(rori_config_t* config, rori_sv* buffer)
     skip(buffer, 1);
     
     rori_sv value = skip_until(buffer, '\n');
+    value = rori_sv_chop_by_delim(&value, ';');
+    value = rori_sv_chop_by_delim(&value, '#');
     if (buffer->len > 0 && buffer->ptr[0] == '\n') {
         skip(buffer, 1);
     }

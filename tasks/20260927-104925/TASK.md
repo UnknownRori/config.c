@@ -1,6 +1,6 @@
 # add single line comment feature with hashtag or semicolon
 
-- STATUS: OPEN
+- STATUS: CLOSED
 - PRIORITY: 100
 - TAGS: parser
 

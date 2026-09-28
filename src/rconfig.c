@@ -411,10 +411,12 @@ static void skip_whitespace(rori_sv* sv)
 
 static void parse_skip_comment(rori_sv* buffer)
 {
-    if (expect(buffer, ';')||expect(buffer, '#')) {
+    if (expect(buffer, ';') || expect(buffer, '#')) {
         skip_until(buffer, '\n');
+        if (buffer->len > 0 && buffer->ptr[0] == '\n') {
+            skip(buffer, 1);
+        }
     }
-    skip(buffer, 1);
 }
 
 static rori_sv skip(rori_sv* sv, size_t count)
@@ -498,6 +500,7 @@ static bool parse_section_properties(rori_config_t* config, rori_sv* buffer)
     skip(buffer, 1);
     
     rori_sv value = skip_until(buffer, '\n');
+    skip_whitespace(&value);
     value = rori_sv_chop_by_delim(&value, ';');
     value = rori_sv_chop_by_delim(&value, '#');
     if (buffer->len > 0 && buffer->ptr[0] == '\n') {

@@ -362,9 +362,32 @@ bool rconfig_set_properties_bool(rori_config_t* self, const char* section, const
     return rconfig_set_properties(self, section, name, value ? true_str : false_str);
 }
 
+static rori_sv rconfig_quote_value(const char* s, size_t len)
+{
+    size_t extra = 2;
+    for (size_t i = 0; i < len; i++) {
+        if (s[i] == '"' || s[i] == '\\') extra++;
+    }
+
+    char* buf = malloc(len + extra + 1);
+    if (!buf) return (rori_sv){0};
+
+    char* p = buf;
+    *p++ = '"';
+    for (size_t i = 0; i < len; i++) {
+        if (s[i] == '"' || s[i] == '\\') *p++ = '\\';
+        *p++ = s[i];
+    }
+    *p++ = '"';
+    *p = '\0';
+
+    return rori_sv_from_cstr(buf);
+}
+
 bool rconfig_set_properties_cstr(rori_config_t* self, const char* section, const char* name, const char* value)
 {
-    return rconfig_set_properties(self, section, name, strdup(value));
+    rori_sv v = value ? rori_sv_from_cstr(value) : (rori_sv){0};
+    return rconfig_set_properties_sv(self, section, name, &v);
 }
 
 bool rconfig_set_properties_sv(rori_config_t* self, const char* section, const char* name, rori_sv* value)
@@ -374,7 +397,9 @@ bool rconfig_set_properties_sv(rori_config_t* self, const char* section, const c
     RORI_ASSERT(name != NULL && "skill issue");
 
     rconfig_section_t* sect = rconfig_get_or_create_section(self, section);
-    rori_sv val_sv = value ? *value : (rori_sv){0};
+
+    rori_sv val_sv = value ? rconfig_quote_value(value->ptr, value->len)
+                           : rconfig_quote_value(NULL, 0);
 
     rstb_da_foreach(rconfig_section_property_t, prop, sect) {
         if (rori_sv_cmp_cstr(prop->name, name) == 0) {

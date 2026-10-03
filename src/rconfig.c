@@ -316,7 +316,7 @@ rconfig_section_t* rconfig_get_or_create_section(rori_config_t* self, const char
     if (sect != NULL) return sect;
 
     rconfig_section_t new_section = (rconfig_section_t) {
-        .name = rori_sv_from_cstr(section_name),
+        .name = rori_sv_from_cstr(strdup(section_name)), // mem leak:p
         .count = 0,
         .items = NULL,
         .capacity = 0,

@@ -45,6 +45,7 @@ See LICENSE file in repository root for full terms.
 #define RORI_CONFIG_H
 
 #include "types.h"
+#include <stddef.h>
 
 
 #ifdef RORI_CONFIG_MALLOC

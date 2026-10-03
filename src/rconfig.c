@@ -48,6 +48,7 @@ See LICENSE file in repository root for full terms.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
 
 #ifndef RORI_SV_H
 rori_sv rori_sv_from_cstr(const char* str)
